@@ -1,29 +1,58 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import ChatPanel from './components/ChatPanel';
+import ContentPanel from './components/ContentPanel';
+import './App.css';
 
-const socket = io('http://localhost:8000');
+const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:8000');
 
 function App() {
-  const [prompt, setPrompt] = useState('');
+  const [messages, setMessages] = useState([
+    {
+      role: 'user',
+      content: 'Animate the step-by-step solution for the equation 2x + 3 = 7',
+      timestamp: Date.now()
+    }
+  ]);
+  const [currentView, setCurrentView] = useState('video');
   const [code, setCode] = useState('');
   const [videoPath, setVideoPath] = useState('');
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     socket.on('code_generated', (data) => {
       setCode(data.code);
-      setStatus('Rendering Video...');
+      setIsLoading(false);
+      setIsRunning(true);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Code generated! Rendering video...',
+        timestamp: Date.now()
+      }]);
     });
 
     socket.on('video_rendered', (data) => {
       setVideoPath(data.video_path);
-      setStatus('Video Ready');
+      setIsRunning(false);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage?.role === 'assistant') {
+          lastMessage.content = 'Animation rendered successfully! You can view it in the Preview tab or edit the code.';
+        }
+        return newMessages;
+      });
     });
 
     socket.on('render_error', (data) => {
-      setError(data.error);
-      setStatus('Error');
+      setIsRunning(false);
+      setIsLoading(false);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Error rendering animation: ${data.error}`,
+        timestamp: Date.now()
+      }]);
     });
 
     return () => {
@@ -33,69 +62,82 @@ function App() {
     };
   }, []);
 
-  const handleSubmit = async () => {
-    setStatus('Generating Code...');
-    setError('');
+  const handleSendMessage = async (prompt) => {
+    setMessages(prev => [...prev, {
+      role: 'user',
+      content: prompt,
+      timestamp: Date.now()
+    }]);
+
+    setIsLoading(true);
     setVideoPath('');
     setCode('');
 
     try {
-      await fetch('http://localhost:8000/generate', {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
     } catch (error) {
-      setError(error.message);
-      setStatus('Error');
+      setIsLoading(false);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Error: ${error.message}`,
+        timestamp: Date.now()
+      }]);
+    }
+  };
+
+  const handleRunCode = async (codeToRun) => {
+    if (!codeToRun.trim()) return;
+
+    setIsRunning(true);
+    setVideoPath('');
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: 'Running updated code...',
+      timestamp: Date.now()
+    }]);
+
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/render-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeToRun }),
+      });
+    } catch (error) {
+      setIsRunning(false);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Error running code: ${error.message}`,
+        timestamp: Date.now()
+      }]);
     }
   };
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center">
-      <div className="w-full max-w-2xl p-8">
-        <h1 className="text-4xl font-bold text-center mb-8">Manim Studio AI</h1>
-        <div className="bg-gray-800 p-4 rounded-lg mb-4">
-          <textarea
-            className="w-full bg-gray-700 text-white p-2 rounded-lg"
-            rows="4"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Enter your animation prompt here..."
-          />
-          <button
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mt-4 w-full"
-            onClick={handleSubmit}
-          >
-            Generate
-          </button>
-        </div>
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-2xl font-bold mb-4">Status: {status}</h2>
-          {error && (
-            <div className="bg-red-500 p-4 rounded-lg mb-4">
-              <p>{error}</p>
-              <div className="flex justify-end mt-4">
-                <button className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg mr-2">
-                  Update Prompt
-                </button>
-                <button className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
-                  Try to Fix
-                </button>
-              </div>
-            </div>
-          )}
-          {code && (
-            <pre className="bg-gray-700 p-4 rounded-lg mb-4 whitespace-pre-wrap">
-              <code>{code}</code>
-            </pre>
-          )}
-          {videoPath && (
-            <video src={`http://localhost:8000/${videoPath}`} controls className="w-full rounded-lg" />
-          )}
-        </div>
+    <div className="flex h-screen bg-gray-900 text-white font-sans">
+      {/* Left Panel - Chat */}
+      <div className="w-1/3 min-w-[400px] bg-transparent">
+        <ChatPanel
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Right Panel - Content */}
+      <div className="flex-1 bg-transparent">
+        <ContentPanel
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          code={code}
+          onCodeChange={setCode}
+          videoPath={videoPath}
+          onRunCode={handleRunCode}
+          isRunning={isRunning}
+        />
       </div>
     </div>
   );

@@ -24,17 +24,19 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 class Prompt(BaseModel):
     prompt: str
 
-@app.get("/media/videos/{quality}/{filename}")
-async def serve_video(quality: str, filename: str):
-    """Proxy endpoint to serve videos from manim-worker"""
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Cloud Run"""
+    return {"status": "healthy", "service": "manim-studio-backend"}
+
+async def proxy_video_from_worker(worker_path: str, filename: str) -> StreamingResponse:
+    """Helper function to proxy video content from manim-worker"""
     try:
-        # Request the video file from manim-worker using async httpx
-        video_url = f"http://manim-worker:8001/video/{quality}/{filename}"
+        video_url = f"http://manim-worker:8001/{worker_path}"
         async with httpx.AsyncClient() as client:
             response = await client.get(video_url)
             response.raise_for_status()
             
-            # Return the video content as streaming response
             return StreamingResponse(
                 iter([response.content]), 
                 media_type="video/mp4",
@@ -45,47 +47,13 @@ async def serve_video(quality: str, filename: str):
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
-@app.get("/media/videos/scene/{quality}/{filename}")
-async def serve_scene_video(quality: str, filename: str):
-    """Proxy endpoint to serve scene videos from manim-worker"""
-    try:
-        # Request the video file from manim-worker using async httpx
-        video_url = f"http://manim-worker:8001/video/scene/{quality}/{filename}"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(video_url)
-            response.raise_for_status()
-            
-            # Return the video content as streaming response
-            return StreamingResponse(
-                iter([response.content]), 
-                media_type="video/mp4",
-                headers={"Content-Disposition": f"inline; filename={filename}"}
-            )
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=404, detail=f"Video not found: {str(e)}")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
-
-@app.get("/media/videos/{scene_dir}/{quality}/{filename}")
-async def serve_dynamic_scene_video(scene_dir: str, quality: str, filename: str):
-    """Proxy endpoint to serve videos from dynamic scene directories (scene_<guid>) from manim-worker"""
-    try:
-        # Request the video file from manim-worker using async httpx
-        video_url = f"http://manim-worker:8001/video/{scene_dir}/{quality}/{filename}"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(video_url)
-            response.raise_for_status()
-            
-            # Return the video content as streaming response
-            return StreamingResponse(
-                iter([response.content]), 
-                media_type="video/mp4",
-                headers={"Content-Disposition": f"inline; filename={filename}"}
-            )
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=404, detail=f"Video not found: {str(e)}")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
+@app.get("/media/videos/{path:path}")
+async def serve_video(path: str):
+    """Unified endpoint to serve all video types from manim-worker"""
+    # Extract filename from path
+    filename = path.split("/")[-1]
+    worker_path = f"video/{path}"
+    return await proxy_video_from_worker(worker_path, filename)
 
 def create_enhanced_manim_prompt(user_prompt: str) -> str:
     """Create an enhanced prompt for better Manim code generation"""
@@ -196,6 +164,35 @@ def generate_with_gemini(user_prompt: str) -> str:
     print(f"Cleaned code: {repr(cleaned_code)}")
     
     return cleaned_code
+
+@app.post("/render-code")
+async def render_code(code: dict):
+    """Render code directly without AI generation"""
+    try:
+        code_to_render = code.get("code", "")
+        if not code_to_render.strip():
+            raise HTTPException(status_code=400, detail="Code cannot be empty")
+        
+        # Emit the code for transparency
+        await sio.emit('code_generated', {'code': code_to_render})
+        
+        # Call manim-worker to render the video
+        try:
+            video_path, render_id = await call_manim_worker(code_to_render)
+            await sio.emit('video_rendered', {
+                'video_path': video_path,
+                'render_id': render_id
+            })
+        except httpx.HTTPStatusError as e:
+            await sio.emit('render_error', {'error': f"Render failed: {str(e)}"})
+        except httpx.RequestError as e:
+            await sio.emit('render_error', {'error': f"Connection failed: {str(e)}"})
+            
+        return {"status": "success", "message": "Code rendering started"}
+
+    except Exception as e:
+        print(f"Error in render_code: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate")
 async def generate_code(prompt: Prompt):

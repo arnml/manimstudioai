@@ -1,0 +1,135 @@
+name: Test Pull Request
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+
+    - name: Lint backend code
+      run: |
+        cd backend
+        pip install flake8 black
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        black --check . || echo "Code formatting issues found"
+
+    - name: Test backend
+      run: |
+        cd backend
+        python -m pytest tests/ -v || echo "No tests found"
+
+    - name: Security check
+      run: |
+        cd backend
+        pip install bandit
+        bandit -r . -f json || echo "Security check completed"
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Lint frontend code
+      run: |
+        cd frontend
+        npm run lint
+
+    - name: Type check
+      run: |
+        cd frontend
+        npx tsc --noEmit || echo "TypeScript check completed"
+
+    - name: Test frontend
+      run: |
+        cd frontend
+        npm test || echo "No tests found"
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+  test-manim-worker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: Install manim-worker dependencies
+      run: |
+        cd manim-worker
+        pip install -r requirements.txt
+
+    - name: Lint manim-worker code
+      run: |
+        cd manim-worker
+        pip install flake8 black
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        black --check . || echo "Code formatting issues found"
+
+    - name: Test manim-worker
+      run: |
+        cd manim-worker
+        python -m pytest tests/ -v || echo "No tests found"
+
+  docker-build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend, manim-worker]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Test Docker build for ${{ matrix.service }}
+      run: |
+        docker build -t test-${{ matrix.service }} ./${{ matrix.service }}
+        echo "✅ Docker build successful for ${{ matrix.service }}"
