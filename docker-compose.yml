@@ -1,0 +1,38 @@
+
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - manim_media:/app/media
+      - ./backend:/app
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - manim-worker
+
+  manim-worker:
+    build:
+      context: ./manim-worker
+    volumes:
+      - manim_media:/app/media
+      - ./manim-worker:/app
+    expose:
+      - "8001"
+
+volumes:
+  manim_media:
