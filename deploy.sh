@@ -69,27 +69,11 @@ gcloud run services replace backend-deploy.yaml --region=$REGION
 BACKEND_URL=$(gcloud run services describe manim-studio-backend --region=$REGION --format="value(status.url)")
 echo "Backend URL: $BACKEND_URL"
 
-# Build and deploy frontend
-echo "🔨 Building and deploying frontend..."
-gcloud builds submit ./frontend \
-    --tag gcr.io/$PROJECT_ID/manim-studio-frontend:latest
-
-# Update frontend config with backend URL
-sed "s/PROJECT_ID/$PROJECT_ID/g" frontend-cloudrun.yaml | \
-sed "s|https://manim-studio-backend-SERVICE_HASH-uc.a.run.app|$BACKEND_URL|g" > frontend-deploy.yaml
-
-# Deploy frontend
-gcloud run services replace frontend-deploy.yaml --region=$REGION
-
-# Get frontend URL
-FRONTEND_URL=$(gcloud run services describe manim-studio-frontend --region=$REGION --format="value(status.url)")
-
 # Clean up temporary files
 rm -f *-deploy.yaml
 
 echo "✅ Deployment complete!"
 echo ""
-echo "📱 Frontend URL: $FRONTEND_URL"
 echo "🔧 Backend URL: $BACKEND_URL"
 echo "⚙️  Worker URL: $WORKER_URL"
 echo ""

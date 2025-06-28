@@ -1,17 +1,14 @@
 # Manim Studio AI
 
-A modern, AI-powered platform for creating mathematical animations using Manim. Built with a bolt.new-inspired interface featuring real-time code editing, AI generation, and seamless video rendering.
+A modern, AI-powered platform for creating mathematical animations using Manim.
 
 ![Manim Studio AI](https://img.shields.io/badge/Python-3.10+-blue.svg)
-![React](https://img.shields.io/badge/React-19+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## 🌟 Features
 
 - **🤖 AI-Powered Generation**: Generate Manim code using Google Gemini AI
-- **💻 Live Code Editor**: Monaco editor with Python syntax highlighting  
 - **🎬 Real-time Preview**: Instant video rendering and preview
-- **💬 Chat Interface**: Intuitive chat-based interaction for creating animations
 - **☁️ Cloud-Ready**: Designed for Google Cloud Platform deployment
 - **💳 Monetization Ready**: Credits system with Stripe integration
 - **🔐 Secure Authentication**: Supabase authentication and user management
@@ -20,27 +17,20 @@ A modern, AI-powered platform for creating mathematical animations using Manim. 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│                 │    │                 │    │                 │
-│    Frontend     │────│     Backend     │────│  Manim Worker   │
-│   (React/Vite)  │    │   (FastAPI)     │    │   (FastAPI)     │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-    ┌────▼────┐             ┌────▼────┐             ┌────▼────┐
-    │         │             │         │             │         │
-    │Supabase │             │ Gemini  │             │  Manim  │
-    │   Auth  │             │   AI    │             │ Library │
-    │         │             │         │             │         │
-    └─────────┘             └─────────┘             └─────────┘
-         │
-    ┌────▼────┐
-    │         │
-    │ Stripe  │
-    │Payments │
-    │         │
-    └─────────┘
+┌─────────────────┐    ┌─────────────────┐
+│                 │    │                 │
+│     Backend     │────│  Manim Worker   │
+│   (FastAPI)     │    │   (FastAPI)     │
+│                 │    │                 │
+└─────────────────┘    └─────────────────┘
+         │                       │
+         │                       │
+    ┌────▼────┐             ┌────▼────┐
+    │         │             │         │
+    │ Gemini  │             │  Manim  │
+    │   AI    │             │ Library │
+    │         │             ���         │
+    └─────────┘             └─────────┘
 ```
 
 ## 🚀 Quick Start
@@ -48,7 +38,6 @@ A modern, AI-powered platform for creating mathematical animations using Manim. 
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 20+
 - Docker & Docker Compose
 - Google Cloud SDK (for deployment)
 
@@ -72,7 +61,6 @@ A modern, AI-powered platform for creating mathematical animations using Manim. 
    ```
 
 4. **Access the application**
-   - Frontend: http://localhost:5173
    - Backend: http://localhost:8000
    - Manim Worker: http://localhost:8001
 
@@ -101,13 +89,6 @@ manim-studio-ai/
 │   ├── main.py             # Main application file
 │   ├── requirements.txt    # Python dependencies
 │   └── Dockerfile         # Docker configuration
-├── frontend/               # React frontend application
-│   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── App.jsx       # Main app component
-│   │   └── main.jsx      # App entry point
-│   ├── package.json      # Node dependencies
-│   └── Dockerfile        # Docker configuration
 ├── manim-worker/          # Manim rendering service
 │   ├── main.py           # Worker application
 │   ├── requirements.txt  # Python dependencies
@@ -147,12 +128,10 @@ manim-studio-ai/
 ```bash
 # Build and push images
 gcloud builds submit ./backend --tag gcr.io/YOUR_PROJECT/manim-studio-backend
-gcloud builds submit ./frontend --tag gcr.io/YOUR_PROJECT/manim-studio-frontend  
 gcloud builds submit ./manim-worker --tag gcr.io/YOUR_PROJECT/manim-studio-worker
 
 # Deploy services
 gcloud run deploy manim-studio-backend --image gcr.io/YOUR_PROJECT/manim-studio-backend --region us-central1
-gcloud run deploy manim-studio-frontend --image gcr.io/YOUR_PROJECT/manim-studio-frontend --region us-central1
 gcloud run deploy manim-studio-worker --image gcr.io/YOUR_PROJECT/manim-studio-worker --region us-central1
 ```
 
@@ -164,14 +143,6 @@ gcloud run deploy manim-studio-worker --image gcr.io/YOUR_PROJECT/manim-studio-w
 cd backend
 pip install -r requirements.txt
 uvicorn main:socket_app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend Development
-
-```bash
-cd frontend
-npm install
-npm run dev
 ```
 
 ### Manim Worker Development
@@ -189,12 +160,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 # Backend tests
 cd backend && python -m pytest
 
-# Frontend tests  
-cd frontend && npm test
-
 # Lint and format
 cd backend && black . && flake8 .
-cd frontend && npm run lint
 ```
 
 ### GitHub Actions
@@ -259,6 +226,8 @@ GET  /user/usage               # Get usage history
 
 ### WebSocket Events
 
+This API is for client integration.
+
 ```javascript
 // Client to server
 socket.emit('generate', { prompt: 'animation description' })
@@ -280,7 +249,6 @@ socket.on('render_error', { error: 'error message' })
 ### Development Guidelines
 
 - Follow PEP 8 for Python code
-- Use ESLint configuration for JavaScript/React
 - Write tests for new features
 - Update documentation for API changes
 
@@ -293,7 +261,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Manim Community](https://www.manim.community/) for the amazing animation library
 - [Google Gemini](https://ai.google.dev/) for AI code generation
 - [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
-- [React](https://reactjs.org/) for the frontend framework
 - [Supabase](https://supabase.com/) for authentication and database
 - [Stripe](https://stripe.com/) for payment processing
 
@@ -306,12 +273,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🗺️ Roadmap
 
 - [ ] Advanced AI prompting with examples
-- [ ] Collaborative editing features
 - [ ] Export to multiple formats (GIF, WebM, etc.)
 - [ ] Template library and sharing
 - [ ] Advanced analytics dashboard
-- [ ] Mobile-responsive design improvements
-- [ ] Integration with popular math tools
 
 ---
 
