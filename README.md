@@ -568,6 +568,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
    - If you get "container failed to start" errors, ensure your container uses the correct port
    - The Dockerfile automatically handles this with `${PORT:-8080}`
 
+7. **`VGroup` TypeError on FadeOut**
+   - **Error**: `TypeError: Only values of type VMobject can be added as submobjects of VGroup...`
+   - **Cause**: The final `FadeOut` animation attempts to group all objects into a `VGroup`, which fails if any object (like a `Text` object) is not a `VMobject`.
+   - **Solution**: The code generation prompt has been updated to use `Group` instead of `VGroup` for the final `FadeOut` animation. `Group` is more general and can handle any `Mobject`.
+     - **Change**: `self.play(FadeOut(VGroup(*self.mobjects)))` was replaced with `self.play(FadeOut(Group(*self.mobjects)))`.
+   - **Impact**: This ensures that scenes with mixed object types exit cleanly without `TypeError`.
+
 ---
 
 <div align="center">

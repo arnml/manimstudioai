@@ -264,108 +264,76 @@ async def render_manim_video(code: str) -> tuple[str, str]:
 
 # Code generation functions
 def create_enhanced_manim_prompt(user_prompt: str) -> str:
-    """Create an enhanced prompt for better Manim code generation"""
-    return f"""Generate professional didactic Manim Python code for mathematics education: "{user_prompt}"
+    """
+    Creates a highly-structured and enhanced prompt for generating container-ready Manim code.
 
-You are creating an educational video like a math professor would make. Focus on clear, step-by-step explanations.
+    This prompt instructs the AI to:
+    1.  Generate professional, didactic Manim code.
+    2.  Ensure the code is runnable within the `manimcommunity/manim:latest` Docker image.
+    3.  Strictly avoid any overlapping text or objects.
+    4.  Include all necessary imports and dependencies within the script.
+    """
+    return f"""
+You are an expert Manim programmer creating a Python script for a mathematics education video.
+Your response MUST be ONLY the raw Python code for the Manim scene. Do not add any explanations, markdown backticks, or other text.
 
-VALID Manim methods and classes:
+**Execution Environment Constraint:**
+* **Target Image:** The code will be executed inside a Docker container using the `manimcommunity/manim:latest` image.
+* **Dependencies:** All necessary imports (`manim`, `numpy`, etc.) must be included at the top of the script. The script must be self-contained.
 
-2D Objects:
-- Shapes: Circle(), Square(), Rectangle(), Line(), Arrow(), Dot(), Triangle()
-- Text: Text(), MathTex(), Tex()
+---
 
-3D Objects (use ThreeDScene):
-- ParametricSurface(), Surface(), Sphere(), Cube(), Cylinder()
-- For 3D, use ThreeDScene instead of Scene
+### **CRITICAL RULE: AVOID ALL OVERLAPPING TEXT AND OBJECTS**
+This is the most important rule. Text and objects must NEVER be rendered on top of each other.
+* **Positioning:** Use layout managers to guarantee separation.
+    * Use `.to_edge()` or `.to_corner()` for titles and peripheral elements.
+    * Use `.next_to(object, DIRECTION, buff=0.5)` to position new elements relative to existing ones. A `buff` of at least `0.5` is recommended.
+    * For lists or sequences of text/equations, use `VGroup(...).arrange(DOWN, buff=0.8)` to stack them vertically with ample spacing.
+* **Validation:** Before adding a new element, mentally check if its position could conflict with any existing element. Ensure animations do not cause temporary overlaps.
 
-Animations: Create(), Write(), Transform(), FadeIn(), FadeOut(), DrawBorderThenFill()
-Movement: .shift(), .move_to(), .next_to(), .to_edge(), .to_corner()
-Properties: .set_color(), .scale(), .rotate()
-Animate: Use .animate for smooth transitions
+---
 
-3D REQUIREMENTS - CRITICAL:
-- ALWAYS use ThreeDScene (not Scene) for any 3D objects
-- MUST include: from manim.opengl import * for ParametricSurface
-- ParametricSurface needs lambda functions with u,v parameters
-- Use np.array([x, y, z]) for 3D coordinates
-- For Möbius strips, Klein bottles, or any parametric surfaces: MUST use ThreeDScene
+### **Educational Animation Structure**
+1.  **Title:** Start with a clear title (e.g., `Text("My Title", font_size=48)`). Position it at the top using `.to_edge(UP, buff=1)`.
+2.  **Sequential Introduction:** Introduce concepts and objects one by one. Use `Write`, `Create`, or `FadeIn`. Do not show everything at once.
+3.  **Logical Flow:** Animate mathematical steps logically. Use `Transform` or `ReplacementTransform` to show the evolution of equations.
+4.  **Emphasis:** Use color or animations like `Indicate()` to highlight key parts.
+5.  **Pacing:** Add `self.wait(1)` after each key step to allow for comprehension.
+6.  **Clean Exit:** Conclude the scene by removing all objects, for example, with `self.play(FadeOut(Group(*self.mobjects)))`.
 
-EDUCATIONAL CONTENT STRUCTURE:
-1. Start with a clear title explaining the concept
-2. Introduce key elements step by step, not all at once
-3. Use consistent mathematical notation and formatting
-4. Highlight important parts with colors or emphasis
-5. Build up complex ideas from simple components
-6. Include brief pauses (self.wait()) for comprehension
+---
 
-TEXT POSITIONING RULES:
-- Title: Always use .to_edge(UP, buff=0.8) for titles
-- Main content: Center or use .shift() with adequate spacing
-- Labels: Use .next_to() with buff=0.3 minimum
-- Multiple text elements: Arrange vertically with 1.0+ unit spacing
-- Mathematical expressions: Group related terms together
-- Never overlap text - use .arrange(DOWN, buff=0.5) for multiple items
+### **Technical & Style Guidelines**
 
-MATHEMATICAL PRESENTATION:
-- Use MathTex() for all mathematical expressions
-- Use consistent font sizes: titles=36, main=28, labels=24
-- Color code: definitions=BLUE, examples=GREEN, important=RED, neutral=WHITE
-- Show work step-by-step with clear transitions
-- Use arrows to connect related concepts
-- Highlight changes in mathematical expressions
+**Scene and Imports:**
+* **2D Scene:** Use `class GeneratedScene(Scene):` and include these imports:
+    ```python
+    from manim import *
+    import numpy as np
+    ```
+* **3D Scene:** Use `class GeneratedScene(ThreeDScene):` and include these imports:
+    ```python
+    from manim import *
+    from manim.opengl import * # If using ParametricSurface
+    import numpy as np
+    ```
 
-ANIMATION TIMING:
-- Allow 1-2 seconds per major concept introduction
-- Use self.wait(1) after each step for understanding
-- Total video should be 8-12 seconds for proper pacing
-- Smooth transitions with run_time=1.5 for mathematical content
+**Object & Text Formatting:**
+* **Math Content:** ALWAYS use `MathTex(r"...")` for all formulas, variables, and mathematical symbols for professional typesetting.
+* **Font Sizes:** Title: 48, Main Content: 36, Labels/Annotations: 24.
+* **Positioning:** Position objects relative to each other or the screen edges. Avoid hardcoding `(x, y, z)` coordinates.
 
-AVOID OVERLAPPING:
-- Check that text doesn't overlap by using adequate spacing
-- Use .next_to() with buff parameter for positioning
-- Arrange multiple objects with .arrange() method
-- Test positioning with different sized text elements
+**Animation Rules:**
+* **Runtime:** Use a default `run_time=1.5`.
+* **Smoothness:** Use `.animate` syntax for property changes (e.g., `self.play(my_object.animate.shift(RIGHT))`).
 
-CRITICAL OUTPUT FORMAT:
-- Return ONLY Python code with NO markdown backticks or formatting
-- NO explanatory text before or after the code
-- ALWAYS include ALL required imports at the top
-- Use ThreeDScene for 3D objects, Scene for 2D objects
+---
 
-Required imports for 2D code:
-from manim import *
-import numpy as np
+**Final Task:**
+Generate a complete, runnable Manim Python script based on the following user request. Remember: ONLY output the code.
 
-Required imports for 3D code:
-from manim import *
-from manim.opengl import *
-import numpy as np
-
-Example for 2D:
-from manim import *
-import numpy as np
-
-class GeneratedScene(Scene):
-    def construct(self):
-        title = Text("Topic Title", font_size=36, color=WHITE)
-        title.to_edge(UP, buff=0.8)
-        self.play(Write(title), run_time=1.5)
-        self.wait(1)
-
-Example for 3D:
-from manim import *
-from manim.opengl import *
-import numpy as np
-
-class GeneratedScene(ThreeDScene):
-    def construct(self):
-        title = Text("3D Topic", font_size=36, color=WHITE)
-        title.to_edge(UP, buff=0.8)
-        self.play(Write(title), run_time=1.5)
-        self.wait(1)
-
-Generate educational mathematics content for: {user_prompt}"""
+**User Prompt:** "{user_prompt}"
+"""
 
 def generate_demo_code(user_prompt: str) -> str:
     """Generate demo Manim code with safe, reliable animations"""
