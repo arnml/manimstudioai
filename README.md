@@ -365,7 +365,7 @@ This real-time approach provides immediate feedback and a smooth user experience
 
    **Linux/macOS:**
    ```bash
-   gcloud run deploy manim-studio-unified \
+   gcloud run deploy manim-studio-ai-backend \
      --image gcr.io/$PROJECT_ID/manim-studio-ai-backend:latest \
      --region=us-central1 \
      --allow-unauthenticated \
@@ -379,7 +379,7 @@ This real-time approach provides immediate feedback and a smooth user experience
 
    **Windows (Command Prompt):**
    ```cmd
-   gcloud run deploy manim-studio-unified ^
+   gcloud run deploy manim-studio-ai-backend ^
      --image gcr.io/%PROJECT_ID%/manim-studio-ai-backend:latest ^
      --region=us-central1 ^
      --allow-unauthenticated ^
@@ -390,14 +390,14 @@ This real-time approach provides immediate feedback and a smooth user experience
      --max-instances=10
    
    rem Set environment variable separately if using secrets
-   gcloud run services update manim-studio-unified ^
+   gcloud run services update manim-studio-ai-backend ^
      --region=us-central1 ^
      --set-env-vars="GEMINI_API_KEY=%GEMINI_API_KEY%"
    ```
 
    **Windows (PowerShell):**
    ```powershell
-   gcloud run deploy manim-studio-unified `
+   gcloud run deploy manim-studio-ai-backend `
      --image gcr.io/$PROJECT_ID/manim-studio-ai-backend:latest `
      --region=us-central1 `
      --allow-unauthenticated `
@@ -409,7 +409,7 @@ This real-time approach provides immediate feedback and a smooth user experience
    
    # Set environment variable separately if using secrets
    $GEMINI_KEY = gcloud secrets versions access latest --secret=gemini-api-key
-   gcloud run services update manim-studio-unified `
+   gcloud run services update manim-studio-ai-backend `
      --region=us-central1 `
      --set-env-vars="GEMINI_API_KEY=$GEMINI_KEY"
    ```
@@ -418,17 +418,17 @@ This real-time approach provides immediate feedback and a smooth user experience
 
    **Linux/macOS:**
    ```bash
-   gcloud run services describe manim-studio-unified --region=us-central1 --format="value(status.url)"
+   gcloud run services describe manim-studio-ai-backend --region=us-central1 --format="value(status.url)"
    ```
 
    **Windows (Command Prompt):**
    ```cmd
-   gcloud run services describe manim-studio-unified --region=us-central1 --format="value(status.url)"
+   gcloud run services describe manim-studio-ai-backend --region=us-central1 --format="value(status.url)"
    ```
 
    **Windows (PowerShell):**
    ```powershell
-   gcloud run services describe manim-studio-unified --region=us-central1 --format="value(status.url)"
+   gcloud run services describe manim-studio-ai-backend --region=us-central1 --format="value(status.url)"
    ```
 
 

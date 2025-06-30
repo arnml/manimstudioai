@@ -129,6 +129,13 @@ def find_rendered_video(temp_media_dir: str, render_id: str) -> tuple[str, str]:
 
 def validate_manim_code(code: str) -> str:
     """Validate and fix common Manim code issues"""
+    import re
+    
+    # Remove markdown formatting artifacts
+    code = re.sub(r'^```python\s*', '', code, flags=re.MULTILINE)
+    code = re.sub(r'^```\s*$', '', code, flags=re.MULTILINE)
+    code = code.replace('```', '')  # Remove any remaining backticks
+    
     # Check for non-existent methods
     invalid_methods = ['move_along_path', 'follow_path', 'trace_path', 'animate_along']
     for method in invalid_methods:
@@ -136,6 +143,23 @@ def validate_manim_code(code: str) -> str:
             print(f"Warning: Removing invalid method '{method}' from code")
             # Replace with safe alternative
             code = code.replace(f'.{method}(', '.shift(')
+    
+    # Basic syntax validation
+    try:
+        compile(code, '<string>', 'exec')
+    except SyntaxError as e:
+        print(f"Syntax error detected: {e}")
+        # If syntax error, return a safe fallback
+        return """from manim import *
+
+class GeneratedScene(Scene):
+    def construct(self):
+        # Fallback due to syntax error
+        title = Text("Error in Generated Code", font_size=36, color=RED)
+        title.to_edge(UP, buff=0.8)
+        self.play(Write(title), run_time=2)
+        self.wait(2)
+"""
     
     # Ensure the code has required imports and structure
     if 'from manim import *' not in code:
@@ -207,44 +231,70 @@ async def render_manim_video(code: str) -> tuple[str, str]:
 # Code generation functions
 def create_enhanced_manim_prompt(user_prompt: str) -> str:
     """Create an enhanced prompt for better Manim code generation"""
-    return f"""Generate professional Manim Python code for: "{user_prompt}"
+    return f"""Generate professional didactic Manim Python code for mathematics education: "{user_prompt}"
 
-IMPORTANT - Only use these VALID Manim methods and classes:
+You are creating an educational video like a math professor would make. Focus on clear, step-by-step explanations.
+
+VALID Manim methods and classes:
 - Shapes: Circle(), Square(), Rectangle(), Line(), Arrow(), Dot(), Triangle()
 - Text: Text(), MathTex(), Tex()
 - Animations: Create(), Write(), Transform(), FadeIn(), FadeOut(), DrawBorderThenFill()
 - Movement: .shift(), .move_to(), .next_to(), .to_edge(), .to_corner()
 - Properties: .set_color(), .scale(), .rotate()
-- Animate: Use .animate for smooth transitions (e.g., obj.animate.shift(UP))
+- Animate: Use .animate for smooth transitions
 
-DO NOT USE these methods (they don't exist):
-- move_along_path, follow_path, trace_path
-- Any methods not explicitly listed above
+EDUCATIONAL CONTENT STRUCTURE:
+1. Start with a clear title explaining the concept
+2. Introduce key elements step by step, not all at once
+3. Use consistent mathematical notation and formatting
+4. Highlight important parts with colors or emphasis
+5. Build up complex ideas from simple components
+6. Include brief pauses (self.wait()) for comprehension
 
-Requirements:
-- Use proper spacing, positioning, and scene composition
-- Include smooth animations with appropriate timing (use self.wait() between major actions)
-- Position elements thoughtfully to avoid overlap
-- Use colors effectively (BLUE, RED, GREEN, YELLOW, PURPLE, etc.)
-- Include realistic animation durations (2-4 seconds total)
-- Use only the valid methods listed above
-- Make animations smooth with Create(), Write(), Transform(), or FadeIn()/FadeOut()
-- Position text and objects with proper margins (.to_edge(), .shift(), .next_to())
-- If creating multiple objects, arrange them nicely in the scene
+TEXT POSITIONING RULES:
+- Title: Always use .to_edge(UP, buff=0.8) for titles
+- Main content: Center or use .shift() with adequate spacing
+- Labels: Use .next_to() with buff=0.3 minimum
+- Multiple text elements: Arrange vertically with 1.0+ unit spacing
+- Mathematical expressions: Group related terms together
+- Never overlap text - use .arrange(DOWN, buff=0.5) for multiple items
 
-Output only the Python code, no explanations or markdown formatting.
+MATHEMATICAL PRESENTATION:
+- Use MathTex() for all mathematical expressions
+- Use consistent font sizes: titles=36, main=28, labels=24
+- Color code: definitions=BLUE, examples=GREEN, important=RED, neutral=WHITE
+- Show work step-by-step with clear transitions
+- Use arrows to connect related concepts
+- Highlight changes in mathematical expressions
 
-Example structure:
-```python
+ANIMATION TIMING:
+- Allow 1-2 seconds per major concept introduction
+- Use self.wait(1) after each step for understanding
+- Total video should be 8-12 seconds for proper pacing
+- Smooth transitions with run_time=1.5 for mathematical content
+
+AVOID OVERLAPPING:
+- Check that text doesn't overlap by using adequate spacing
+- Use .next_to() with buff parameter for positioning
+- Arrange multiple objects with .arrange() method
+- Test positioning with different sized text elements
+
+CRITICAL OUTPUT FORMAT:
+- Return ONLY Python code with NO markdown backticks or formatting
+- NO explanatory text before or after the code
+- Start directly with: from manim import *
+
+Example:
 from manim import *
 
 class GeneratedScene(Scene):
     def construct(self):
-        # Your code here with proper spacing and timing
-        pass
-```
+        title = Text("Topic Title", font_size=36, color=WHITE)
+        title.to_edge(UP, buff=0.8)
+        self.play(Write(title), run_time=1.5)
+        self.wait(1)
 
-Generate for: {user_prompt}"""
+Generate educational mathematics content for: {user_prompt}"""
 
 def generate_demo_code(user_prompt: str) -> str:
     """Generate demo Manim code with safe, reliable animations"""
