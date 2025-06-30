@@ -138,10 +138,10 @@ def validate_manim_code(code: str) -> str:
     
     # Check for non-existent methods
     invalid_methods = ['move_along_path', 'follow_path', 'trace_path', 'animate_along']
+    
     for method in invalid_methods:
         if method in code:
             print(f"Warning: Removing invalid method '{method}' from code")
-            # Replace with safe alternative
             code = code.replace(f'.{method}(', '.shift(')
     
     # Basic syntax validation
@@ -161,15 +161,49 @@ class GeneratedScene(Scene):
         self.wait(2)
 """
     
-    # Ensure the code has required imports and structure
-    if 'from manim import *' not in code:
-        code = 'from manim import *\n\n' + code
+    # Check if 3D objects are used and add appropriate imports
+    needs_3d = any(obj in code for obj in ['ParametricSurface', 'Surface', 'Sphere', 'Cube', 'Cylinder', 'ThreeDScene'])
     
-    if 'class' not in code or 'Scene' not in code:
-        # Wrap in a basic scene if missing
-        code = f"""from manim import *
+    # Replace ParametricSurface with Surface for compatibility
+    if 'ParametricSurface' in code:
+        code = code.replace('ParametricSurface', 'Surface')
+    
+    # Ensure proper imports
+    if needs_3d:
+        # For 3D content, use standard imports without opengl
+        required_imports = """from manim import *
+import numpy as np"""
+        
+        if 'from manim import *' not in code:
+            code = required_imports + '\n\n' + code
+        else:
+            # Replace basic import with 3D-enabled imports
+            code = code.replace('from manim import *', required_imports)
+    else:
+        # For 2D content, use standard imports
+        if 'from manim import *' not in code:
+            code = 'from manim import *\nimport numpy as np\n\n' + code
+        elif 'import numpy as np' not in code:
+            code = code.replace('from manim import *', 'from manim import *\nimport numpy as np')
+    
+    # Handle scene class conversion for 3D content
+    if needs_3d:
+        # Replace Scene with ThreeDScene if 3D objects detected
+        if 'class GeneratedScene(Scene):' in code:
+            code = code.replace('class GeneratedScene(Scene):', 'class GeneratedScene(ThreeDScene):')
+        elif 'Scene' in code and 'ThreeDScene' not in code:
+            code = code.replace('Scene', 'ThreeDScene')
+    
+    if 'class' not in code or ('Scene' not in code and 'ThreeDScene' not in code):
+        # Choose appropriate scene class based on content
+        scene_class = 'ThreeDScene' if needs_3d else 'Scene'
+        
+        imports = """from manim import *
+import numpy as np"""
+        
+        code = f"""{imports}
 
-class GeneratedScene(Scene):
+class GeneratedScene({scene_class}):
     def construct(self):
         # Generated code
         {code}
@@ -236,12 +270,26 @@ def create_enhanced_manim_prompt(user_prompt: str) -> str:
 You are creating an educational video like a math professor would make. Focus on clear, step-by-step explanations.
 
 VALID Manim methods and classes:
+
+2D Objects:
 - Shapes: Circle(), Square(), Rectangle(), Line(), Arrow(), Dot(), Triangle()
 - Text: Text(), MathTex(), Tex()
-- Animations: Create(), Write(), Transform(), FadeIn(), FadeOut(), DrawBorderThenFill()
-- Movement: .shift(), .move_to(), .next_to(), .to_edge(), .to_corner()
-- Properties: .set_color(), .scale(), .rotate()
-- Animate: Use .animate for smooth transitions
+
+3D Objects (use ThreeDScene):
+- ParametricSurface(), Surface(), Sphere(), Cube(), Cylinder()
+- For 3D, use ThreeDScene instead of Scene
+
+Animations: Create(), Write(), Transform(), FadeIn(), FadeOut(), DrawBorderThenFill()
+Movement: .shift(), .move_to(), .next_to(), .to_edge(), .to_corner()
+Properties: .set_color(), .scale(), .rotate()
+Animate: Use .animate for smooth transitions
+
+3D REQUIREMENTS - CRITICAL:
+- ALWAYS use ThreeDScene (not Scene) for any 3D objects
+- MUST include: from manim.opengl import * for ParametricSurface
+- ParametricSurface needs lambda functions with u,v parameters
+- Use np.array([x, y, z]) for 3D coordinates
+- For Möbius strips, Klein bottles, or any parametric surfaces: MUST use ThreeDScene
 
 EDUCATIONAL CONTENT STRUCTURE:
 1. Start with a clear title explaining the concept
@@ -282,14 +330,37 @@ AVOID OVERLAPPING:
 CRITICAL OUTPUT FORMAT:
 - Return ONLY Python code with NO markdown backticks or formatting
 - NO explanatory text before or after the code
-- Start directly with: from manim import *
+- ALWAYS include ALL required imports at the top
+- Use ThreeDScene for 3D objects, Scene for 2D objects
 
-Example:
+Required imports for 2D code:
 from manim import *
+import numpy as np
+
+Required imports for 3D code:
+from manim import *
+from manim.opengl import *
+import numpy as np
+
+Example for 2D:
+from manim import *
+import numpy as np
 
 class GeneratedScene(Scene):
     def construct(self):
         title = Text("Topic Title", font_size=36, color=WHITE)
+        title.to_edge(UP, buff=0.8)
+        self.play(Write(title), run_time=1.5)
+        self.wait(1)
+
+Example for 3D:
+from manim import *
+from manim.opengl import *
+import numpy as np
+
+class GeneratedScene(ThreeDScene):
+    def construct(self):
+        title = Text("3D Topic", font_size=36, color=WHITE)
         title.to_edge(UP, buff=0.8)
         self.play(Write(title), run_time=1.5)
         self.wait(1)

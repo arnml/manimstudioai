@@ -19,7 +19,8 @@
       "Bash(sudo rm:*)",
       "Bash(mv:*)",
       "Bash(find:*)",
-      "Bash(ss:*)"
+      "Bash(ss:*)",
+      "WebFetch(domain:docs.manim.community)"
     ],
     "deny": []
   }
