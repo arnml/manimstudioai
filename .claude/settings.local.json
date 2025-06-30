@@ -11,7 +11,13 @@
       "Bash(docker exec:*)",
       "Bash(ls:*)",
       "Bash(gcloud run services list:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(sudo rm:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }
