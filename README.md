@@ -10,8 +10,6 @@ A modern, AI-powered platform for creating mathematical animations using Manim.
 - **🤖 AI-Powered Generation**: Generate Manim code using Google Gemini AI
 - **🎬 Real-time Preview**: Instant video rendering and preview
 - **☁️ Cloud-Ready**: Designed for Google Cloud Platform deployment
-- **💳 Monetization Ready**: Credits system with Stripe integration
-- **🔐 Secure Authentication**: Supabase authentication and user management
 - **🔄 CI/CD Pipeline**: Automated testing and deployment with GitHub Actions
 
 ## 🏗️ Architecture
@@ -29,7 +27,7 @@ A modern, AI-powered platform for creating mathematical animations using Manim.
     │         │             │         │
     │ Gemini  │             │  Manim  │
     │   AI    │             │ Library │
-    │         │             ���         │
+    │         │             │         │
     └─────────┘             └─────────┘
 ```
 
@@ -51,8 +49,7 @@ A modern, AI-powered platform for creating mathematical animations using Manim.
 
 2. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
+   # No environment variables needed for local development
    ```
 
 3. **Start with Docker Compose**
@@ -63,23 +60,6 @@ A modern, AI-powered platform for creating mathematical animations using Manim.
 4. **Access the application**
    - Backend: http://localhost:8000
    - Manim Worker: http://localhost:8001
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
-
-```bash
-# Required
-GEMINI_API_KEY=your_gemini_api_key
-
-# Optional (for production features)
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
-```
 
 ## 📦 Project Structure
 
@@ -93,12 +73,9 @@ manim-studio-ai/
 │   ├── main.py           # Worker application
 │   ├── requirements.txt  # Python dependencies
 │   └── Dockerfile        # Docker configuration
-├── docs/                  # Documentation
-│   └── payment-integration-plan.md
 ├── .github/
-│   └── workflows/        # GitHub Actions CI/CD
-├── docker-compose.yml    # Local development setup
-└── deploy.sh            # GCP deployment script
+│   └��─ workflows/        # GitHub Actions CI/CD
+└── docker-compose.yml    # Local development setup
 ```
 
 ## ☁️ Cloud Deployment
@@ -110,118 +87,105 @@ manim-studio-ai/
    - `gcloud` CLI installed and configured
    - Docker installed
 
-2. **Deploy to Cloud Run**
+2. **Enable APIs**
    ```bash
-   ./deploy.sh YOUR_PROJECT_ID us-central1
+   gcloud services enable cloudbuild.googleapis.com run.googleapis.com secretmanager.googleapis.com containerregistry.googleapis.com --project=YOUR_PROJECT_ID
    ```
 
-3. **Set up secrets**
+3. **Create Gemini API Key Secret**
    ```bash
-   # Create secrets in Google Secret Manager
-   echo "your-gemini-api-key" | gcloud secrets create gemini-api-key --data-file=-
-   echo "your-supabase-url" | gcloud secrets create supabase-url --data-file=-
-   # ... etc for other secrets
+   echo "YOUR_GEMINI_API_KEY" | gcloud secrets create gemini-api-key --data-file=- --project=YOUR_PROJECT_ID --replication-policy=automatic
    ```
 
-### Manual Cloud Run Deployment
+4. **Grant Permissions**
+   Get the current IAM policy and save it to a file:
+   ```bash
+   gcloud projects get-iam-policy YOUR_PROJECT_ID --format=json > iam-policy.json
+   ```
+   Add the following bindings to the `iam-policy.json` file:
+   ```json
+   {
+     "members": [
+       "user:YOUR_EMAIL"
+     ],
+     "role": "roles/cloudbuild.builds.editor"
+   },
+   {
+     "members": [
+       "serviceAccount:YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+     ],
+     "role": "roles/secretmanager.secretAccessor"
+   }
+   ```
+   Set the new IAM policy:
+   ```bash
+   gcloud projects set-iam-policy YOUR_PROJECT_ID iam-policy.json
+   ```
 
-```bash
-# Build and push images
-gcloud builds submit ./backend --tag gcr.io/YOUR_PROJECT/manim-studio-backend
-gcloud builds submit ./manim-worker --tag gcr.io/YOUR_PROJECT/manim-studio-worker
+5. **Build and Deploy Manim Worker**
+   ```bash
+   gcloud builds submit ./manim-worker --tag gcr.io/YOUR_PROJECT_ID/manim-studio-worker:latest --project=YOUR_PROJECT_ID
+   ```
+   Create a `manim-worker-deploy.yaml` file with the following content, replacing `YOUR_PROJECT_ID`:
+   ```yaml
+   apiVersion: serving.knative.dev/v1
+   kind: Service
+   metadata:
+     name: manim-studio-worker
+   spec:
+     template:
+       metadata:
+         annotations:
+           run.googleapis.com/ingress: internal
+       spec:
+         containers:
+         - image: gcr.io/YOUR_PROJECT_ID/manim-studio-worker:latest
+   ```
+   Deploy the service:
+   ```bash
+   gcloud run services replace manim-worker-deploy.yaml --project=YOUR_PROJECT_ID --region=us-central1
+   ```
 
-# Deploy services
-gcloud run deploy manim-studio-backend --image gcr.io/YOUR_PROJECT/manim-studio-backend --region us-central1
-gcloud run deploy manim-studio-worker --image gcr.io/YOUR_PROJECT/manim-studio-worker --region us-central1
-```
-
-## 🔧 Development
-
-### Backend Development
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:socket_app --reload --host 0.0.0.0 --port 8000
-```
-
-### Manim Worker Development
-
-```bash
-cd manim-worker
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8001
-```
-
-## 🧪 Testing
-
-### Run All Tests
-```bash
-# Backend tests
-cd backend && python -m pytest
-
-# Lint and format
-cd backend && black . && flake8 .
-```
-
-### GitHub Actions
-
-The project includes comprehensive CI/CD pipelines:
-
-- **Pull Request Testing**: Runs tests, linting, and security checks
-- **Deployment**: Automatically deploys to GCP on main branch pushes
-- **Security Scanning**: Weekly vulnerability and dependency checks
-
-## 💰 Monetization
-
-The platform includes a complete credits-based monetization system:
-
-### Credit Costs
-- **Basic Generation**: 5 credits
-- **Premium Generation**: 10 credits  
-- **Video Rendering**: 3 credits
-- **Code Editing**: 1 credit
-
-### Credit Packages
-- **Starter**: 100 credits for $9.99
-- **Pro**: 500 credits for $39.99
-- **Enterprise**: 1000 credits for $69.99
-
-### Payment Integration
-
-See [Payment Integration Plan](docs/payment-integration-plan.md) for detailed setup instructions for Supabase authentication and Stripe payments.
-
-## 📊 Usage Analytics
-
-Track user behavior and system performance:
-
-- User authentication and session management
-- Credit usage and transaction history
-- Rendering performance metrics
-- Error tracking and monitoring
-
-## 🔒 Security
-
-- **Authentication**: Supabase JWT-based authentication
-- **Authorization**: Row-level security policies
-- **Input Validation**: Comprehensive request validation
-- **Secret Management**: Google Secret Manager integration
-- **Container Security**: Non-root containers and security scanning
+6. **Build and Deploy Backend**
+   ```bash
+   gcloud builds submit ./backend --tag gcr.io/YOUR_PROJECT_ID/manim-studio-backend:latest --project=YOUR_PROJECT_ID
+   ```
+   Create a `backend-deploy.yaml` file with the following content, replacing `YOUR_PROJECT_ID` and `YOUR_MANIM_WORKER_URL`:
+   ```yaml
+   apiVersion: serving.knative.dev/v1
+   kind: Service
+   metadata:
+     name: manim-studio-backend
+   spec:
+     template:
+       spec:
+         containers:
+         - image: gcr.io/YOUR_PROJECT_ID/manim-studio-backend:latest
+           env:
+           - name: GEMINI_API_KEY
+             valueFrom:
+               secretKeyRef:
+                 key: latest
+                 name: gemini-api-key
+           - name: MANIM_WORKER_URL
+             value: "YOUR_MANIM_WORKER_URL"
+   ```
+   Deploy the service:
+   ```bash
+   gcloud run services replace backend-deploy.yaml --project=YOUR_PROJECT_ID --region=us-central1
+   ```
 
 ## 🛠️ API Reference
 
 ### Backend Endpoints
+
+The backend is deployed to a public URL on Cloud Run. You can use this URL to interact with the API from your frontend application.
 
 ```
 GET  /health                    # Health check
 POST /generate                  # Generate code with AI
 POST /render-code              # Render code directly
 GET  /media/videos/{path:path} # Serve video files
-
-# Authentication required endpoints
-GET  /user/credits             # Get user credit balance
-POST /user/purchase            # Purchase credits
-GET  /user/usage               # Get usage history
 ```
 
 ### WebSocket Events
@@ -261,21 +225,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Manim Community](https://www.manim.community/) for the amazing animation library
 - [Google Gemini](https://ai.google.dev/) for AI code generation
 - [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
-- [Supabase](https://supabase.com/) for authentication and database
-- [Stripe](https://stripe.com/) for payment processing
-
-## 📞 Support
-
-- Create an issue for bug reports or feature requests
-- Join our [Discord community](https://discord.gg/your-server) for discussions
-- Check the [documentation](docs/) for detailed guides
-
-## 🗺️ Roadmap
-
-- [ ] Advanced AI prompting with examples
-- [ ] Export to multiple formats (GIF, WebM, etc.)
-- [ ] Template library and sharing
-- [ ] Advanced analytics dashboard
 
 ---
 

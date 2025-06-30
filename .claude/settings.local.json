@@ -7,7 +7,11 @@
       "Bash(chmod:*)",
       "Bash(docker-compose up:*)",
       "Bash(curl:*)",
-      "Bash(docker-compose:*)"
+      "Bash(docker-compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(ls:*)",
+      "Bash(gcloud run services list:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }
